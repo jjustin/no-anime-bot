@@ -21,4 +21,5 @@ python bot.py
 ```
 DISCORD_TOKEN={bot-token}
 CASCADE_FILE=./lbpcascade_animeface.xml
+TEST_GUILD_IDS={guild that get messages with faces mared}
 ```

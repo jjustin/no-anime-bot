@@ -1,6 +1,8 @@
 # bot.py
 import os
+import io
 import numpy as np
+import requests
 from cv2 import cv2
 
 import discord
@@ -9,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 cascade_file = os.getenv('CASCADE_FILE')
+test_guild_ids = [int(s) for s in os.getenv('TEST_GUILD_IDS').split(',')]
 
 if not os.path.isfile(cascade_file):
     raise RuntimeError("%s: cascade file not found" % cascade_file)
@@ -24,23 +27,50 @@ async def on_ready():
 
 @client.event
 async def on_message(msg):
-    if(len(msg.attachments) == 0):
+    if(msg.author.id == client.user.id):
         return
-    att = msg.attachments[0]
-    img_bytes = await att.read()
-    nparr = np.frombuffer(img_bytes, dtype='uint8')
-    img = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
+    
+    to_check = [] # list of images to check
+    
+    # scan attachments
+    for att in msg.attachments:
+        to_check.append(await att.read())
+    embed_images = []
+    
+    # scan embeds
+    for embed in msg.embeds:
+        if(embed.thumbnail.url == embed.Empty):
+            continue
+        to_check.append(requests.get(embed.thumbnail.url).content)
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gray = cv2.equalizeHist(gray)
+    # check each image seperately
+    violated = False
+    for img_bytes in to_check:
+        nparr = np.frombuffer(img_bytes, dtype='uint8')
+        img = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
 
-    faces = cascade.detectMultiScale(gray,
-                                     # detector options
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.equalizeHist(gray)
+
+        faces = cascade.detectMultiScale(gray,
                                      scaleFactor=1.1,
                                      minNeighbors=5,
                                      minSize=(24, 24))
-    if(len(faces) != 0):
+        
+        # handle images that violate no anime conventions
+        if(len(faces) != 0):
+            violated = True
+            
+            # report where face was spotted in test servers
+            if(msg.guild.id in test_guild_ids):
+                for (x, y, w, h) in faces:
+                    cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                cv2.imwrite( "tmp.jpg", img)
+                await msg.reply(file=discord.File('tmp.jpg'))
+    
+    # respond based on `violated` status
+    if(violated):
         await msg.reply(file=discord.File('noAnime.png'))
         await msg.add_reaction("👎")
-
+        
 client.run(TOKEN)
