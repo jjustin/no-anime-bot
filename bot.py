@@ -35,14 +35,14 @@ async def on_message(msg):
     # scan attachments
     for att in msg.attachments:
         to_check.append(await att.read())
-    embed_images = []
-    
+
     # scan embeds
     for embed in msg.embeds:
-        if(embed.thumbnail.url == embed.Empty):
-            continue
-        to_check.append(requests.get(embed.thumbnail.url).content)
-
+        if(embed.thumbnail.url != embed.Empty):
+            to_check.append(requests.get(embed.thumbnail.url).content)
+        if(embed.image.url != embed.Empty):
+            to_check.append(requests.get(embed.image.url).content)
+            
     # check each image seperately
     violated = False
     for img_bytes in to_check:
