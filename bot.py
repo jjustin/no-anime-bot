@@ -9,13 +9,14 @@ import discord
 from dotenv import load_dotenv
 
 load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
-cascade_file = os.getenv('CASCADE_FILE')
-test_guild_ids = [int(s) for s in os.getenv('TEST_GUILD_IDS').split(',')]
 
-if not os.path.isfile(cascade_file):
-    raise RuntimeError("%s: cascade file not found" % cascade_file)
-cascade = cv2.CascadeClassifier(cascade_file)
+TOKEN = os.getenv('DISCORD_TOKEN')
+CASCADE_FILE = os.getenv('CASCADE_FILE')
+DEBUG = os.getenv('DEBUG')
+
+if not os.path.isfile(CASCADE_FILE):
+    raise RuntimeError("%s: cascade file not found" % CASCADE_FILE)
+cascade = cv2.CascadeClassifier(CASCADE_FILE)
 
 client = discord.Client()
 
@@ -61,8 +62,8 @@ async def on_message(msg):
         if(len(faces) != 0):
             violated = True
             
-            # report where face was spotted in test servers
-            if(msg.guild.id in test_guild_ids):
+            # report where face was spotted in debug mode
+            if(DEBUG == 1):
                 for (x, y, w, h) in faces:
                     cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
                 cv2.imwrite( "tmp.jpg", img)
